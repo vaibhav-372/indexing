@@ -1,0 +1,33 @@
+case-1
+
+We have 3 boxes (Box1, Box2, Box3) in each row.
+
+Initially → first row is prefilled with initial values.
+
+On Box1 click → add value to col1 and col2 in row1 and move to next row and wait for other boxes to click
+
+If Box1 clicked again immediately (consecutive 2 times without other boxes in row1) then, add hyphen in row 1 for box2 and box3 because of unclicked boxes in previous row and carry forward the values in row2 and row3 to continue with box1 
+
+Then in the next row, continue with the skipped numbers by carrying forward.
+
+Left side (col1 buttons) are always clickable.
+
+Each box works independently, but must align rows correctly.
+
+
+
+case - 2
+
+if box1 and box2 clicked in 1st row then wait for box3 to click
+
+box3 not clicked in 1st row and again clicked box2 in 2nd row, now wait for box1 and box3 to click in 2nd row
+
+if box2 again clicked continuously in 3rd row then add hyphen in 2nd row for box1 and box3 and carry forward values to next row
+
+
+
+case - 3
+
+if 3 boxes clicked in 1st row and moved all boxes to 2nd row
+
+now in 2nd row, only box1 is clicked and not clicked box2 and box3 and moved to 3rd row and again clicked box1 in 3rd row, carry forward the values of box2 and box3 in 2nd row to 3rd row and kepp hyphen in 2nd row for box2 and box3
