@@ -200,38 +200,36 @@ export default function Game() {
         dataIndex: nextDataIndex,
       };
 
-      // After every right click, check remaining boxes individually
-      // Check if they clicked in current row - 1, if not, add hyphen to that row
-      const previousRow = rowIndex - 1;
-      
-      if (previousRow >= 0) {
+      // Consecutive same-box hyphen rule across boxes (Case-1/2/3)
+      // If last click was on the same box and immediately previous row, hyphen unfilled cells
+      if (
+        lastSameBoxClick.boxKey === boxKey &&
+        lastSameBoxClick.rowIndex === rowIndex - 1 &&
+        rowIndex > 0
+      ) {
+        const prevRow = rowIndex - 1;
+        // For every other box, if its prevRow is not completed, hyphen and advance pointer if needed
         Object.keys(updatedStates).forEach(otherKey => {
           if (otherKey === boxKey) return;
           const otherState = { ...updatedStates[otherKey] };
-          
-          // Check if this box has clicked in the previous row
-          const hasClickedInPreviousRow = otherState.right[previousRow] && otherState.right[previousRow] !== '';
-          const isHyphenInPreviousRow = otherState.rowData[previousRow]?.col1 === '-' && otherState.rowData[previousRow]?.col2 === '-';
-          
-          // If not clicked in previous row and not already hyphened, add hyphen
-          if (!hasClickedInPreviousRow && !isHyphenInPreviousRow && previousRow < otherState.rowData.length) {
+          const otherRight = otherState.right[prevRow] ?? '';
+          const otherIsHyphen = otherState.rowData[prevRow]?.col1 === '-' && otherState.rowData[prevRow]?.col2 === '-';
+
+          // Only hyphen if that box's cell in prevRow is not already filled and not hyphened
+          if (otherRight === '' && !otherIsHyphen) {
             const newRowData = [...otherState.rowData];
-            newRowData[previousRow] = { col1: '-', col2: '-' };
+            newRowData[prevRow] = { col1: '-', col2: '-' };
 
             const newCompleted = [...otherState.completedRows];
-            newCompleted[previousRow] = true;
+            newCompleted[prevRow] = true;
 
-            const newCurrentRow = otherState.currentRow === previousRow ? previousRow + 1 : otherState.currentRow;
-
-            // Advance dataIndex for hyphened rows to maintain proper data sequence
-            const newDataIndex = otherState.dataIndex + 1;
+            const newCurrentRow = otherState.currentRow === prevRow ? prevRow + 1 : otherState.currentRow;
 
             updatedStates[otherKey] = {
               ...otherState,
               rowData: newRowData,
               completedRows: newCompleted,
               currentRow: newCurrentRow,
-              dataIndex: newDataIndex,
             };
           }
         });
@@ -464,7 +462,7 @@ export default function Game() {
                 return (
                   <tr key={i} className=" transition-colors">
                     {/* Step number */}
-                    <td className="py-2 px-3 font-medium text-balck">{i + 1}</td>
+                    <td className="py-2 px-3 font-medium text-white">{i + 1}</td>
 
                     {/* Left choice buttons */}
                     <td className="py-2 px-3 space-x-2 flex">
@@ -551,7 +549,7 @@ export default function Game() {
         </div>
 
         {/* Totals table (slim, aligned properly) */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 w-28 flex-shrink-0">
+        <div className="bg-gray-700 shadow-lg rounded-2xl border border-gray-200 w-28 flex-shrink-0">
           {/* Header */}
           <div className="bg-[#2EE8B3] text-white py-3 px-3 rounded-t-2xl text-center">
             <span className="text-lg font-semibold tracking-wide">Total</span>
@@ -578,7 +576,7 @@ export default function Game() {
                     const rowTotal = computeRowCol2Total(i);
                     return (
                       <tr key={i}>
-                        <td className="py-3 px-2 text-black text-center">
+                        <td className="py-3 px-2 text-white text-center">
                           {rowTotal}
                         </td>
                       </tr>

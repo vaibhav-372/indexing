@@ -8,10 +8,10 @@ export default function Data() {
     box3: createEmptyBox(),
   });
 
-  const [isEditing, setIsEditing] = useState(false); // edit mode toggle
+  const [isEditing, setIsEditing] = useState(false); 
 
   useEffect(() => {
-    axios.get('http://index-backend.vercel.app/data')
+    axios.get('https://index-backend.vercel.app/data')
       .then((res) => {
         if (res.data) setData(res.data);
       })
