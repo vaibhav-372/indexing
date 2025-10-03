@@ -31,7 +31,7 @@ export default function Data() {
   };
 
   const handleSave = () => {
-    axios.post('http://localhost:5000/data', data)
+    axios.post('https://index-backend.vercel.app/data', data)
       .then((res) => {
         console.log(res.data);
         setIsEditing(false);

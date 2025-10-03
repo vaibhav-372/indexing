@@ -43,40 +43,61 @@ export default function Game() {
       left: Array(row).fill(''),      // left button selections per row
       right: Array(row).fill(''),     // right button selections per row
       completedRows: Array(row).fill(false), // flags whether row is completed
-      buttonColors: Array(row).fill(''), // track button colors: 'same' (red) or 'different' (green)
       // no sequence snapshot; values commit only on click
     };
   }
 
+  // // Function to compute total for a specific row across all boxes
+  // const computeRowCol2Total = (rowIdx) => {
+  //   const boxes = ['box1', 'box2', 'box3'];
+  //   return boxes.reduce((sum, key) => {
+  //     const bState = boxStates[key];
+      
+  //     // Check if this row exists in the box's rowData and has data
+  //     if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
+  //       const rowData = bState.rowData[rowIdx];
+  //       const val = rowData?.col2;
+        
+  //       // Ignore hyphens, empty values, and non-numbers
+  //       if (val === '-' || val === undefined || val === null || val === '') return sum;
+        
+  //       const n = Number(val);
+  //       return sum + (Number.isFinite(n) ? n : 0);
+  //     }
+      
+  //     return sum;
+  //   }, 0);
+  // };
+
   // Enhanced function to compute total for a specific row across all boxes
-  const computeRowCol2Total = (rowIdx) => {
-    const boxes = ['box1', 'box2', 'box3'];
-    return boxes.reduce((sum, key) => {
-      const bState = boxStates[key];
-      const boxData = data[key];
-      
-      let col2Value = null;
-      
-      // Case 1: Row has committed data
-      if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
-        const rowData = bState.rowData[rowIdx];
-        col2Value = rowData?.col2;
-      }
-      // Case 2: This is the current active row - show preview from data
-      else if (rowIdx === bState.currentRow && boxData?.col2?.length > 0) {
-        const nextIndex = bState.dataIndex % boxData.col2.length;
-        col2Value = boxData.col2[nextIndex] || "";
-      }
-      
-      // Process the value
-      if (col2Value && col2Value !== '-' && col2Value !== '') {
-        const n = Number(col2Value);
-        return sum + (Number.isFinite(n) ? n : 0);
-      }
-      
-      return sum;
-    }, 0);
-  };
+const computeRowCol2Total = (rowIdx) => {
+  const boxes = ['box1', 'box2', 'box3'];
+  return boxes.reduce((sum, key) => {
+    const bState = boxStates[key];
+    const boxData = data[key];
+    
+    let col2Value = null;
+    
+    // Case 1: Row has committed data
+    if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
+      const rowData = bState.rowData[rowIdx];
+      col2Value = rowData?.col2;
+    }
+    // Case 2: This is the current active row - show preview from data
+    else if (rowIdx === bState.currentRow && boxData?.col2?.length > 0) {
+      const nextIndex = bState.dataIndex % boxData.col2.length;
+      col2Value = boxData.col2[nextIndex] || "";
+    }
+    
+    // Process the value
+    if (col2Value && col2Value !== '-' && col2Value !== '') {
+      const n = Number(col2Value);
+      return sum + (Number.isFinite(n) ? n : 0);
+    }
+    
+    return sum;
+  }, 0);
+};
 
   // Function to fetch data for a given box and level
   const fetchData = (boxKey, level) => {
@@ -194,17 +215,9 @@ export default function Game() {
         col2: levelData.col2[boxState.dataIndex % levelData.col2.length] || ""
       };
 
-      // Determine if left and right buttons are the same or different
-      const leftValue = boxState.left[rowIndex];
-      const buttonsAreSame = leftValue === value;
-      
-      // Update button colors
-      const updatedButtonColors = [...boxState.buttonColors];
-      updatedButtonColors[rowIndex] = buttonsAreSame ? 'same' : 'different';
-
       // Sequence/dataIndex advances at most once per row based on rule
       let nextDataIndex = boxState.dataIndex;
-      if (!buttonsAreSame) {
+      if (boxState.left[rowIndex] !== value) {
         nextDataIndex = boxState.dataIndex + 1;
       }
 
@@ -216,7 +229,6 @@ export default function Game() {
         right: updatedRight,
         completedRows: updatedCompleted,
         rowData: updatedRowData,
-        buttonColors: updatedButtonColors,
         currentRow: nextCurrentRow,
         dataIndex: nextDataIndex,
       };
@@ -276,7 +288,6 @@ export default function Game() {
             left: [...s.left, ""],
             right: [...s.right, ""],
             completedRows: [...s.completedRows, false],
-            buttonColors: [...s.buttonColors, ''],
           };
         });
       }
@@ -308,7 +319,6 @@ export default function Game() {
           const newCompletedRows = [...boxState.completedRows];
           const newLeft = [...boxState.left];
           const newRight = [...boxState.right];
-          const newButtonColors = [...boxState.buttonColors];
           
           // Add hyphens for all skipped rows between currentRow and maxCurrentRow
           for (let rowIndex = currentRow; rowIndex < maxCurrentRow; rowIndex++) {
@@ -318,7 +328,6 @@ export default function Game() {
               newCompletedRows.push(false);
               newLeft.push('');
               newRight.push('');
-              newButtonColors.push('');
             }
             
             // Only add hyphen if this row is not already completed and doesn't have data
@@ -337,7 +346,6 @@ export default function Game() {
             completedRows: newCompletedRows,
             left: newLeft,
             right: newRight,
-            buttonColors: newButtonColors,
             currentRow: maxCurrentRow,
           };
         }
@@ -425,38 +433,6 @@ export default function Game() {
 
                   const leftValue = i < boxState.left.length ? boxState.left[i] : '';
                   const rightValue = i < boxState.right.length ? boxState.right[i] : '';
-                  const buttonColor = i < boxState.buttonColors.length ? boxState.buttonColors[i] : '';
-
-                  // Determine button colors based on whether left and right were same or different
-                  const getLeftButtonColor = (buttonValue) => {
-                    if (!isCompletedInThisBox) {
-                      return leftValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
-                    }
-                    
-                    if (buttonColor === 'same') {
-                      return leftValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
-                      return leftValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
-                    }
-                    return 'bg-gray-300 text-gray-500';
-                  };
-
-                  const getRightButtonColor = (buttonValue) => {
-                    if (rightDisabled && !isCompletedInThisBox) {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed';
-                    }
-                    
-                    if (!rightDisabled) {
-                      return rightValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
-                    }
-                    
-                    if (buttonColor === 'same') {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
-                      return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
-                    }
-                    return 'bg-gray-300 text-gray-500';
-                  };
 
                   return (
                     <tr key={i} className=" transition-colors">
@@ -467,16 +443,20 @@ export default function Game() {
                       <td className="py-2 px-3 space-x-2 flex">
                         <button
                           onClick={() => handleLeftClick(boxKey, i, btn1)}
-                          disabled={isCompletedInThisBox}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getLeftButtonColor(btn1)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${leftValue === btn1
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
                         >
                           {btn1}
                         </button>
 
                         <button
                           onClick={() => handleLeftClick(boxKey, i, btn2)}
-                          disabled={isCompletedInThisBox}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getLeftButtonColor(btn2)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${leftValue === btn2
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
                         >
                           {btn2}
                         </button>
@@ -491,7 +471,14 @@ export default function Game() {
                         <button
                           onClick={() => handleRightClick(boxKey, i, btn1, levelData)}
                           disabled={rightDisabled}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getRightButtonColor(btn1)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${rightDisabled
+                            ? rightValue === btn1
+                              ? 'bg-red-500 text-white'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : rightValue === btn1
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
                         >
                           {btn1}
                         </button>
@@ -499,7 +486,14 @@ export default function Game() {
                         <button
                           onClick={() => handleRightClick(boxKey, i, btn2, levelData)}
                           disabled={rightDisabled}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getRightButtonColor(btn2)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${rightDisabled
+                            ? rightValue === btn2
+                              ? 'bg-red-500 text-white'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : rightValue === btn2
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
                         >
                           {btn2}
                         </button>

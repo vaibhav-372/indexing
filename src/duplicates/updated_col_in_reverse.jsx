@@ -43,38 +43,26 @@ export default function Game() {
       left: Array(row).fill(''),      // left button selections per row
       right: Array(row).fill(''),     // right button selections per row
       completedRows: Array(row).fill(false), // flags whether row is completed
-      buttonColors: Array(row).fill(''), // track button colors: 'same' (red) or 'different' (green)
       // no sequence snapshot; values commit only on click
     };
   }
 
-  // Enhanced function to compute total for a specific row across all boxes
+  const getDisplayedRowDataFor = (boxKey, rowIdx) => {
+    const bState = boxStates[boxKey];
+    if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
+      return bState.rowData[rowIdx] || { col1: '', col2: '' };
+    }
+    return { col1: '', col2: '' };
+  };
+
   const computeRowCol2Total = (rowIdx) => {
     const boxes = ['box1', 'box2', 'box3'];
     return boxes.reduce((sum, key) => {
-      const bState = boxStates[key];
-      const boxData = data[key];
-      
-      let col2Value = null;
-      
-      // Case 1: Row has committed data
-      if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
-        const rowData = bState.rowData[rowIdx];
-        col2Value = rowData?.col2;
-      }
-      // Case 2: This is the current active row - show preview from data
-      else if (rowIdx === bState.currentRow && boxData?.col2?.length > 0) {
-        const nextIndex = bState.dataIndex % boxData.col2.length;
-        col2Value = boxData.col2[nextIndex] || "";
-      }
-      
-      // Process the value
-      if (col2Value && col2Value !== '-' && col2Value !== '') {
-        const n = Number(col2Value);
-        return sum + (Number.isFinite(n) ? n : 0);
-      }
-      
-      return sum;
+      const rd = getDisplayedRowDataFor(key, rowIdx);
+      const val = rd?.col2;
+      if (val === '-' || val === undefined || val === null || val === '') return sum;
+      const n = Number(val);
+      return sum + (Number.isFinite(n) ? n : 0);
     }, 0);
   };
 
@@ -194,17 +182,9 @@ export default function Game() {
         col2: levelData.col2[boxState.dataIndex % levelData.col2.length] || ""
       };
 
-      // Determine if left and right buttons are the same or different
-      const leftValue = boxState.left[rowIndex];
-      const buttonsAreSame = leftValue === value;
-      
-      // Update button colors
-      const updatedButtonColors = [...boxState.buttonColors];
-      updatedButtonColors[rowIndex] = buttonsAreSame ? 'same' : 'different';
-
       // Sequence/dataIndex advances at most once per row based on rule
       let nextDataIndex = boxState.dataIndex;
-      if (!buttonsAreSame) {
+      if (boxState.left[rowIndex] !== value) {
         nextDataIndex = boxState.dataIndex + 1;
       }
 
@@ -216,7 +196,6 @@ export default function Game() {
         right: updatedRight,
         completedRows: updatedCompleted,
         rowData: updatedRowData,
-        buttonColors: updatedButtonColors,
         currentRow: nextCurrentRow,
         dataIndex: nextDataIndex,
       };
@@ -245,7 +224,7 @@ export default function Game() {
             const newCurrentRow = otherState.currentRow === previousRow ? previousRow + 1 : otherState.currentRow;
 
             // Advance dataIndex for hyphened rows to maintain proper data sequence
-            const newDataIndex = otherState.dataIndex;
+            const newDataIndex = otherState.dataIndex + 1;
 
             updatedStates[otherKey] = {
               ...otherState,
@@ -276,73 +255,10 @@ export default function Game() {
             left: [...s.left, ""],
             right: [...s.right, ""],
             completedRows: [...s.completedRows, false],
-            buttonColors: [...s.buttonColors, ''],
           };
         });
       }
 
-      return updatedStates;
-    });
-  };
-
-  // Sync button handler with hyphen addition for skipped boxes
-  const handleSyncButton = () => {
-    setBoxStates(prev => {
-      const updatedStates = { ...prev };
-      
-      // Find the maximum current row across all boxes
-      const maxCurrentRow = Math.max(
-        updatedStates.box1.currentRow,
-        updatedStates.box2.currentRow,
-        updatedStates.box3.currentRow
-      );
-      
-      // For each box, move to the max row and add hyphens for skipped rows
-      Object.keys(updatedStates).forEach(boxKey => {
-        const boxState = updatedStates[boxKey];
-        const currentRow = boxState.currentRow;
-        
-        if (currentRow < maxCurrentRow) {
-          // Create copies of arrays to modify
-          const newRowData = [...boxState.rowData];
-          const newCompletedRows = [...boxState.completedRows];
-          const newLeft = [...boxState.left];
-          const newRight = [...boxState.right];
-          const newButtonColors = [...boxState.buttonColors];
-          
-          // Add hyphens for all skipped rows between currentRow and maxCurrentRow
-          for (let rowIndex = currentRow; rowIndex < maxCurrentRow; rowIndex++) {
-            // Ensure the array has this index
-            if (rowIndex >= newRowData.length) {
-              newRowData.push(null);
-              newCompletedRows.push(false);
-              newLeft.push('');
-              newRight.push('');
-              newButtonColors.push('');
-            }
-            
-            // Only add hyphen if this row is not already completed and doesn't have data
-            if (!newCompletedRows[rowIndex] && 
-                (newRowData[rowIndex] === null || 
-                 (newRowData[rowIndex]?.col1 !== '-' && newRowData[rowIndex]?.col2 !== '-'))) {
-              newRowData[rowIndex] = { col1: '-', col2: '-' };
-              newCompletedRows[rowIndex] = true;
-            }
-          }
-          
-          // Update the box state
-          updatedStates[boxKey] = {
-            ...boxState,
-            rowData: newRowData,
-            completedRows: newCompletedRows,
-            left: newLeft,
-            right: newRight,
-            buttonColors: newButtonColors,
-            currentRow: maxCurrentRow,
-          };
-        }
-      });
-      
       return updatedStates;
     });
   };
@@ -384,12 +300,11 @@ export default function Game() {
                 <th className="py-2 px-3 text-left rounded-l-lg w-16">Steps</th>
                 <th className="py-2 px-3 text-left w-40">Actions</th>
                 <th className="py-2 px-3 text-left w-28">Col 1</th>
-                <th className="py-2 px-3 text-left rounded-r-lg w-28">Col 2</th>
+                <th className="py-2 px-3 text-left w-28">Col 2</th>
                 <th className="py-2 px-3 text-left rounded-r-lg w-40">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {/* Render rows dynamically */}
               {Array.from({ length: maxRows }, (_, i) => i)   // array of indexes
                 .reverse()                                    // reverse order (bottom → top)
                 .map((i) => {
@@ -398,23 +313,19 @@ export default function Game() {
                       ? boxState.completedRows[i]
                       : false;
 
-                  // Hyphen-lock detection for this row in this box
                   const isHyphenRowForThisBox =
                     i < boxState.rowData.length &&
                     boxState.rowData[i] !== null &&
                     boxState.rowData[i]?.col1 === '-' &&
                     boxState.rowData[i]?.col2 === '-';
 
-                  // Allow clicks on current or previous rows (<= currentRow) if not completed and not hyphened
                   const rightDisabled =
                     isCompletedInThisBox || isHyphenRowForThisBox || i > boxState.currentRow;
 
-                  // Get row data for rendering
                   let rowData;
                   if (i < boxState.rowData.length && boxState.rowData[i] !== null) {
                     rowData = boxState.rowData[i];
                   } else if (i === boxState.currentRow && levelData?.col1 && levelData?.col2) {
-                    // Preview next values for the current row using this box's own dataIndex
                     rowData = {
                       col1: levelData.col1[boxState.dataIndex % levelData.col1.length] || "",
                       col2: levelData.col2[boxState.dataIndex % levelData.col2.length] || ""
@@ -425,58 +336,40 @@ export default function Game() {
 
                   const leftValue = i < boxState.left.length ? boxState.left[i] : '';
                   const rightValue = i < boxState.right.length ? boxState.right[i] : '';
-                  const buttonColor = i < boxState.buttonColors.length ? boxState.buttonColors[i] : '';
 
-                  // Determine button colors based on whether left and right were same or different
-                  const getLeftButtonColor = (buttonValue) => {
-                    if (!isCompletedInThisBox) {
-                      return leftValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
-                    }
-                    
-                    if (buttonColor === 'same') {
-                      return leftValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
-                      return leftValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
-                    }
-                    return 'bg-gray-300 text-gray-500';
+                  const getCol2Number = (state, idx) => {
+                    const rd = idx < state.rowData.length ? state.rowData[idx] : null;
+                    const v = rd && rd.col2 !== undefined && rd.col2 !== null ? rd.col2 : '';
+                    if (v === '-' || v === '') return 0;
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : 0;
                   };
-
-                  const getRightButtonColor = (buttonValue) => {
-                    if (rightDisabled && !isCompletedInThisBox) {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed';
-                    }
-                    
-                    if (!rightDisabled) {
-                      return rightValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
-                    }
-                    
-                    if (buttonColor === 'same') {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
-                      return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
-                    }
-                    return 'bg-gray-300 text-gray-500';
-                  };
+                  const rowTotal =
+                    getCol2Number(boxStates.box1, i) +
+                    getCol2Number(boxStates.box2, i) +
+                    getCol2Number(boxStates.box3, i);
 
                   return (
-                    <tr key={i} className=" transition-colors">
-                      {/* Step number */}
-                      <td className="py-2 px-3 font-medium text-balck">{i + 1}</td>
-
+                    <tr key={i} className="transition-colors">
+                      <td className="py-2 px-3 font-medium text-black">{i + 1}</td>
                       {/* Left choice buttons */}
                       <td className="py-2 px-3 space-x-2 flex">
                         <button
                           onClick={() => handleLeftClick(boxKey, i, btn1)}
-                          disabled={isCompletedInThisBox}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getLeftButtonColor(btn1)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${leftValue === btn1
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
                         >
                           {btn1}
                         </button>
 
                         <button
                           onClick={() => handleLeftClick(boxKey, i, btn2)}
-                          disabled={isCompletedInThisBox}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getLeftButtonColor(btn2)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${leftValue === btn2
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
                         >
                           {btn2}
                         </button>
@@ -491,7 +384,14 @@ export default function Game() {
                         <button
                           onClick={() => handleRightClick(boxKey, i, btn1, levelData)}
                           disabled={rightDisabled}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getRightButtonColor(btn1)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${rightDisabled
+                            ? rightValue === btn1
+                              ? 'bg-red-500 text-white'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : rightValue === btn1
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
                         >
                           {btn1}
                         </button>
@@ -499,7 +399,14 @@ export default function Game() {
                         <button
                           onClick={() => handleRightClick(boxKey, i, btn2, levelData)}
                           disabled={rightDisabled}
-                          className={`px-3 py-1 rounded-lg shadow-sm transition ${getRightButtonColor(btn2)}`}
+                          className={`px-3 py-1 rounded-lg shadow-sm transition ${rightDisabled
+                            ? rightValue === btn2
+                              ? 'bg-red-500 text-white'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : rightValue === btn2
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
                         >
                           {btn2}
                         </button>
@@ -530,39 +437,36 @@ export default function Game() {
         </div>
 
         {/* Totals table (slim, aligned properly) */}
-        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 w-32 flex-shrink-0">
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 w-28 flex-shrink-0">
           {/* Header */}
           <div className="bg-[#2EE8B3] text-white py-3 px-4 rounded-t-2xl flex items-center justify-between">
             <span className="text-lg font-semibold tracking-wide">Total</span>
-            {/* Sync button */}
-            <button
-              onClick={handleSyncButton}
-              className="px-2 py-1 rounded-md shadow-sm transition duration-200 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium cursor-pointer"
-              title="Sync all boxes to highest row"
-            >
+            {/* enter down button */}
+            <button className="px-1 rounded-md shadow-sm transition duration-200 bg-gray-800 hover:bg-gray-500 text-white text-sm font-medium cursor-pointer">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                className="h-4 w-4"
+                className="h-5 w-5"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  d="M4 4v8a2 2 0 002 2h10m0 0l-4-4m4 4l-4 4"
                 />
               </svg>
             </button>
           </div>
+
 
           {/* Table body */}
           <div className="p-4">
             <table className="table-fixed border-collapse w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-700 text-xs uppercase tracking-wider">
-                  <th className="py-4 px-2 rounded-lg text-center">Row Total</th>
+                  <th className="py-4 px-2 rounded-lg text-center">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -581,7 +485,7 @@ export default function Game() {
                     const rowTotal = computeRowCol2Total(i);
                     return (
                       <tr key={i}>
-                        <td className="py-3 px-2 text-black text-center font-medium">
+                        <td className="py-3 px-2 text-black text-center">
                           {rowTotal}
                         </td>
                       </tr>
