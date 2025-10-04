@@ -35,7 +35,7 @@ export default function Game() {
   }
 
   useEffect(() => {
-    console.log('Box states updated:', boxStates);
+    // console.log('Box states updated:', boxStates);
     
     // Check if any box has started the current row
     const currentRow = Math.min(

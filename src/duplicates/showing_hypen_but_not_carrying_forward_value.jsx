@@ -35,7 +35,7 @@ export default function Game() {
   }
 
   useEffect(() => {
-    console.log('Box states updated:', boxStates);
+    // console.log('Box states updated:', boxStates);
   }, [boxStates]);
 
   const fetchData = (boxKey, level) => {

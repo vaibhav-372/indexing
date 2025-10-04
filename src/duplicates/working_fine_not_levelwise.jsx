@@ -44,10 +44,10 @@ export default function Game() {
   });
 
   useEffect(() => {
-    console.log(`updated box ${count} currentRow :`, boxStates.box1.currentRow)
-    console.log(`updated box ${count} left :`, boxStates.box1.left)
-    console.log(`updated box ${count} right :`, boxStates.box1.right)
-    console.log(`updated box ${count} completedRows :`, boxStates.box1.completedRows)
+    // console.log(`updated box ${count} currentRow :`, boxStates.box1.currentRow)
+    // console.log(`updated box ${count} left :`, boxStates.box1.left)
+    // console.log(`updated box ${count} right :`, boxStates.box1.right)
+    // console.log(`updated box ${count} completedRows :`, boxStates.box1.completedRows)
   }, [boxStates])
 
 

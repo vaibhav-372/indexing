@@ -48,6 +48,27 @@ export default function Game() {
     };
   }
 
+  // Function to ensure we always have at least 8 rows ahead of current row
+  const ensureRowsAhead = (boxState, boxKey) => {
+    const rowsNeeded = boxState + 8; // Always show 8 rows ahead
+    const currentRows = boxState.rowData.length;
+    
+    if (currentRows <= rowsNeeded) {
+      const additionalRows = rowsNeeded - currentRows + 1; // +1 for buffer
+      
+      return {
+        ...boxState,
+        rowData: [...boxState.rowData, ...Array(additionalRows).fill(null)],
+        left: [...boxState.left, ...Array(additionalRows).fill('')],
+        right: [...boxState.right, ...Array(additionalRows).fill('')],
+        completedRows: [...boxState.completedRows, ...Array(additionalRows).fill(false)],
+        buttonColors: [...boxState.buttonColors, ...Array(additionalRows).fill('')],
+      };
+    }
+    
+    return boxState;
+  };
+
   // Enhanced function to compute total for a specific row across all boxes
   const computeRowCol2Total = (rowIdx) => {
     const boxes = ['box1', 'box2', 'box3'];
@@ -109,7 +130,7 @@ export default function Game() {
               };
             }
 
-            return {
+            const updatedState = {
               ...prev,
               [boxKey]: {
                 ...boxState,
@@ -117,6 +138,11 @@ export default function Game() {
                 dataIndex: 0,
               },
             };
+
+            // Ensure we have enough rows ahead
+            updatedState[boxKey] = ensureRowsAhead(updatedState[boxKey], boxKey);
+            
+            return updatedState;
           });
         }
       })
@@ -145,13 +171,18 @@ export default function Game() {
       // Toggle selection: deselect if same value is clicked again
       updatedLeft[rowIndex] = updatedLeft[rowIndex] === value ? '' : value;
 
-      return {
+      const updatedState = {
         ...prev,
         [boxKey]: {
           ...boxState,
           left: updatedLeft
         }
       };
+
+      // Ensure we have enough rows ahead
+      updatedState[boxKey] = ensureRowsAhead(updatedState[boxKey], boxKey);
+      
+      return updatedState;
     });
   };
 
@@ -221,6 +252,9 @@ export default function Game() {
         dataIndex: nextDataIndex,
       };
 
+      // Ensure we have enough rows ahead for this box
+      updatedStates[boxKey] = ensureRowsAhead(updatedStates[boxKey], boxKey);
+
       // After every right click, check remaining boxes individually
       // Check if they clicked in current row - 1, if not, add hyphen to that row
       const previousRow = rowIndex - 1;
@@ -254,6 +288,9 @@ export default function Game() {
               currentRow: newCurrentRow,
               dataIndex: newDataIndex,
             };
+
+            // Ensure we have enough rows ahead for this box too
+            updatedStates[otherKey] = ensureRowsAhead(updatedStates[otherKey], otherKey);
           }
         });
       }
@@ -261,25 +298,29 @@ export default function Game() {
       // Update lastSameBoxClick for next evaluation
       setLastSameBoxClick({ boxKey, rowIndex });
 
-      // Ensure all three boxes keep rows in sync length-wise
-      const maxRowLength = Math.max(
-        updatedStates.box1.rowData.length,
-        updatedStates.box2.rowData.length,
-        updatedStates.box3.rowData.length
+      // Ensure all three boxes keep rows in sync length-wise and have enough rows ahead
+      const maxRowsNeeded = Math.max(
+        updatedStates.box1.currentRow + 8,
+        updatedStates.box2.currentRow + 8,
+        updatedStates.box3.currentRow + 8
       );
-      if (nextCurrentRow >= maxRowLength) {
-        Object.keys(updatedStates).forEach(key => {
-          const s = updatedStates[key];
+
+      Object.keys(updatedStates).forEach(key => {
+        const s = updatedStates[key];
+        const currentRows = s.rowData.length;
+        
+        if (currentRows < maxRowsNeeded) {
+          const additionalRows = maxRowsNeeded - currentRows;
           updatedStates[key] = {
             ...s,
-            rowData: [...s.rowData, null],
-            left: [...s.left, ""],
-            right: [...s.right, ""],
-            completedRows: [...s.completedRows, false],
-            buttonColors: [...s.buttonColors, ''],
+            rowData: [...s.rowData, ...Array(additionalRows).fill(null)],
+            left: [...s.left, ...Array(additionalRows).fill('')],
+            right: [...s.right, ...Array(additionalRows).fill('')],
+            completedRows: [...s.completedRows, ...Array(additionalRows).fill(false)],
+            buttonColors: [...s.buttonColors, ...Array(additionalRows).fill('')],
           };
-        });
-      }
+        }
+      });
 
       return updatedStates;
     });
@@ -341,6 +382,9 @@ export default function Game() {
             currentRow: maxCurrentRow,
           };
         }
+
+        // Ensure we have enough rows ahead for this box
+        updatedStates[boxKey] = ensureRowsAhead(updatedStates[boxKey], boxKey);
       });
       
       return updatedStates;
@@ -351,8 +395,9 @@ export default function Game() {
   const renderTable = (boxKey, title, btn1, btn2, levelData) => {
     const boxState = boxStates[boxKey];
 
-    // Ensure all tables expand equally
-    const maxRows = Math.max(
+    // Calculate total rows needed (current row + 8 rows ahead)
+    const totalRows = Math.max(
+      boxState.currentRow + 8,
       boxStates.box1.rowData.length,
       boxStates.box2.rowData.length,
       boxStates.box3.rowData.length
@@ -389,8 +434,8 @@ export default function Game() {
               </tr>
             </thead>
             <tbody>
-              {/* Render rows dynamically */}
-              {Array.from({ length: maxRows }, (_, i) => i)   // array of indexes
+              {/* Render rows dynamically - always show current row + 8 ahead */}
+              {Array.from({ length: totalRows }, (_, i) => i)   // array of indexes
                 .reverse()                                    // reverse order (bottom → top)
                 .map((i) => {
                   const isCompletedInThisBox =
@@ -434,16 +479,16 @@ export default function Game() {
                     }
                     
                     if (buttonColor === 'same') {
-                      return leftValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
                       return leftValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
+                    } else if (buttonColor === 'different') {
+                      return leftValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
                     }
                     return 'bg-gray-300 text-gray-500';
                   };
 
                   const getRightButtonColor = (buttonValue) => {
                     if (rightDisabled && !isCompletedInThisBox) {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed';
+                      return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed';
                     }
                     
                     if (!rightDisabled) {
@@ -451,9 +496,9 @@ export default function Game() {
                     }
                     
                     if (buttonColor === 'same') {
-                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
-                    } else if (buttonColor === 'different') {
                       return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
+                    } else if (buttonColor === 'different') {
+                      return rightValue === buttonValue ? 'bg-red-500 text-white' : 'bg-red-300 text-white';
                     }
                     return 'bg-gray-300 text-gray-500';
                   };
@@ -514,6 +559,14 @@ export default function Game() {
     );
   };
 
+  // Calculate total rows needed for totals table (current max row + 8 ahead)
+  const maxCurrentRow = Math.max(
+    boxStates.box1.currentRow,
+    boxStates.box2.currentRow,
+    boxStates.box3.currentRow
+  );
+  const totalRowsNeeded = maxCurrentRow + 8;
+
   // Final JSX return — renders all 3 box tables side by side
   return (
     <div className="max-w-7xl mx-auto px-2 py-4">
@@ -566,16 +619,7 @@ export default function Game() {
                 </tr>
               </thead>
               <tbody>
-                {Array.from(
-                  {
-                    length: Math.max(
-                      boxStates.box1.rowData.length,
-                      boxStates.box2.rowData.length,
-                      boxStates.box3.rowData.length
-                    ),
-                  },
-                  (_, i) => i
-                )
+                {Array.from({ length: totalRowsNeeded }, (_, i) => i)
                   .reverse()
                   .map((i) => {
                     const rowTotal = computeRowCol2Total(i);

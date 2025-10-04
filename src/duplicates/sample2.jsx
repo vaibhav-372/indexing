@@ -65,7 +65,7 @@ export default function Game() {
     }
 
     // Continue with right-side action here (API call, state update, etc.)
-    console.log(`Right button clicked: Box ${box}, Row ${rowIndex + 1}, Value: ${value}`);
+    // console.log(`Right button clicked: Box ${box}, Row ${rowIndex + 1}, Value: ${value}`);
   };
 
 

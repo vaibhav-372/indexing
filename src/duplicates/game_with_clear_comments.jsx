@@ -131,7 +131,7 @@ export default function Game() {
         updatedStates.box3.currentRow
       );
 
-      console.log('minimum current row', minCurrentRow)
+      // console.log('minimum current row', minCurrentRow)
 
       // Prevent clicking outside the current row
       if (rowIndex !== boxState.currentRow) return prev;
