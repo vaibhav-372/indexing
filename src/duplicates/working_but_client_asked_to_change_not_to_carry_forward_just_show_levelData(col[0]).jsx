@@ -52,10 +52,10 @@ export default function Game() {
   const ensureRowsAhead = (boxState, boxKey) => {
     const rowsNeeded = boxState + 8; // Always show 8 rows ahead
     const currentRows = boxState.rowData.length;
-
+    
     if (currentRows <= rowsNeeded) {
       const additionalRows = rowsNeeded - currentRows + 1; // +1 for buffer
-
+      
       return {
         ...boxState,
         rowData: [...boxState.rowData, ...Array(additionalRows).fill(null)],
@@ -65,7 +65,7 @@ export default function Game() {
         buttonColors: [...boxState.buttonColors, ...Array(additionalRows).fill('')],
       };
     }
-
+    
     return boxState;
   };
 
@@ -75,9 +75,9 @@ export default function Game() {
     return boxes.reduce((sum, key) => {
       const bState = boxStates[key];
       const boxData = data[key];
-
+      
       let col2Value = null;
-
+      
       // Case 1: Row has committed data
       if (rowIdx < bState.rowData.length && bState.rowData[rowIdx] !== null) {
         const rowData = bState.rowData[rowIdx];
@@ -88,13 +88,13 @@ export default function Game() {
         const nextIndex = bState.dataIndex % boxData.col2.length;
         col2Value = boxData.col2[nextIndex] || "";
       }
-
+      
       // Process the value
       if (col2Value && col2Value !== '-' && col2Value !== '') {
         const n = Number(col2Value);
         return sum + (Number.isFinite(n) ? n : 0);
       }
-
+      
       return sum;
     }, 0);
   };
@@ -141,7 +141,7 @@ export default function Game() {
 
             // Ensure we have enough rows ahead
             updatedState[boxKey] = ensureRowsAhead(updatedState[boxKey], boxKey);
-
+            
             return updatedState;
           });
         }
@@ -181,168 +181,168 @@ export default function Game() {
 
       // Ensure we have enough rows ahead
       updatedState[boxKey] = ensureRowsAhead(updatedState[boxKey], boxKey);
-
+      
       return updatedState;
     });
   };
 
-const handleRightClick = (boxKey, rowIndex, value, levelData) => {
-  // Debounce: ignore very fast repeated clicks per box
-  const now = Date.now();
-  if (now - lastClickAt[boxKey] < 250) return;
-  setLastClickAt(prev => ({ ...prev, [boxKey]: now }));
+  const handleRightClick = (boxKey, rowIndex, value, levelData) => {
+    // Debounce: ignore very fast repeated clicks per box
+    const now = Date.now();
+    if (now - lastClickAt[boxKey] < 250) return;
+    setLastClickAt(prev => ({ ...prev, [boxKey]: now }));
 
-  setBoxStates(prev => {
-    const updatedStates = { ...prev };
-    const boxState = { ...updatedStates[boxKey] };
+    setBoxStates(prev => {
+      const updatedStates = { ...prev };
+      const boxState = { ...updatedStates[boxKey] };
 
-    // Prevent re-clicking a completed row
-    if (boxState.completedRows[rowIndex]) return prev;
+      // Prevent re-clicking a completed row
+      if (boxState.completedRows[rowIndex]) return prev;
 
-    // Allow filling previous rows until hyphened/completed; if clicking future rows, block
-    if (rowIndex > boxState.currentRow) return prev;
+      // Allow filling previous rows until hyphened/completed; if clicking future rows, block
+      if (rowIndex > boxState.currentRow) return prev;
 
-    // Require a left selection first
-    if (!boxState.left[rowIndex]) {
-      alert("Please select a left option first!");
-      return prev;
-    }
+      // Require a left selection first
+      if (!boxState.left[rowIndex]) {
+        alert("Please select a left option first!");
+        return prev;
+      }
 
-    // If this row is locked by hyphen, do nothing
-    const isHyphenRow = boxState.rowData[rowIndex]?.col1 === '-' && boxState.rowData[rowIndex]?.col2 === '-';
-    if (isHyphenRow) return prev;
+      // If this row is locked by hyphen, do nothing
+      const isHyphenRow = boxState.rowData[rowIndex]?.col1 === '-' && boxState.rowData[rowIndex]?.col2 === '-';
+      if (isHyphenRow) return prev;
 
-    // Apply the click exactly once for this row
-    const updatedRight = [...boxState.right];
-    updatedRight[rowIndex] = value;
+      // Apply the click exactly once for this row
+      const updatedRight = [...boxState.right];
+      updatedRight[rowIndex] = value;
 
-    const updatedCompleted = [...boxState.completedRows];
-    updatedCompleted[rowIndex] = true;
+      const updatedCompleted = [...boxState.completedRows];
+      updatedCompleted[rowIndex] = true;
 
-    // Determine if left and right buttons are the same or different
-    const leftValue = boxState.left[rowIndex];
-    const buttonsAreSame = leftValue === value;
+      const updatedRowData = [...boxState.rowData];
+      updatedRowData[rowIndex] = {
+        col1: levelData.col1[boxState.dataIndex % levelData.col1.length] || "",
+        col2: levelData.col2[boxState.dataIndex % levelData.col2.length] || ""
+      };
 
-    // Update button colors
-    const updatedButtonColors = [...boxState.buttonColors];
-    updatedButtonColors[rowIndex] = buttonsAreSame ? 'same' : 'different';
+      // Determine if left and right buttons are the same or different
+      const leftValue = boxState.left[rowIndex];
+      const buttonsAreSame = leftValue === value;
+      
+      // Update button colors
+      const updatedButtonColors = [...boxState.buttonColors];
+      updatedButtonColors[rowIndex] = buttonsAreSame ? 'same' : 'different';
 
-    const updatedRowData = [...boxState.rowData];
-    
-    // CURRENT ROW: Always show normal data progression
-    updatedRowData[rowIndex] = {
-      col1: levelData.col1[boxState.dataIndex % levelData.col1.length] || "",
-      col2: levelData.col2[boxState.dataIndex % levelData.col2.length] || ""
-    };
+      // Sequence/dataIndex advances at most once per row based on rule
+      let nextDataIndex = boxState.dataIndex;
+      if (!buttonsAreSame) {
+        nextDataIndex = boxState.dataIndex + 1;
+      }
 
-    // RESET dataIndex to 0 when same buttons are clicked
-    let nextDataIndex = boxState.dataIndex;
-    if (buttonsAreSame) {
-      nextDataIndex = 0; // Reset to start from levelData.col[0]
-    } else {
-      nextDataIndex = boxState.dataIndex + 1; // Continue normal progression
-    }
+      // Advance pointer only if clicking at the leading current row; leave as-is for past rows
+      const nextCurrentRow = rowIndex === boxState.currentRow ? rowIndex + 1 : boxState.currentRow;
 
-    // Advance pointer only if clicking at the leading current row; leave as-is for past rows
-    const nextCurrentRow = rowIndex === boxState.currentRow ? rowIndex + 1 : boxState.currentRow;
+      updatedStates[boxKey] = {
+        ...boxState,
+        right: updatedRight,
+        completedRows: updatedCompleted,
+        rowData: updatedRowData,
+        buttonColors: updatedButtonColors,
+        currentRow: nextCurrentRow,
+        dataIndex: nextDataIndex,
+      };
 
-    updatedStates[boxKey] = {
-      ...boxState,
-      right: updatedRight,
-      completedRows: updatedCompleted,
-      rowData: updatedRowData,
-      buttonColors: updatedButtonColors,
-      currentRow: nextCurrentRow,
-      dataIndex: nextDataIndex, // This will be 0 if same buttons were clicked
-    };
+      // Ensure we have enough rows ahead for this box
+      updatedStates[boxKey] = ensureRowsAhead(updatedStates[boxKey], boxKey);
 
-    // Ensure we have enough rows ahead for this box
-    updatedStates[boxKey] = ensureRowsAhead(updatedStates[boxKey], boxKey);
+      // After every right click, check remaining boxes individually
+      // Check if they clicked in current row - 1, if not, add hyphen to that row
+      const previousRow = rowIndex - 1;
 
-    // After every right click, check remaining boxes individually
-    // Check if they clicked in current row - 1, if not, add hyphen to that row
-    const previousRow = rowIndex - 1;
+      if (previousRow >= 0) {
+        Object.keys(updatedStates).forEach(otherKey => {
+          if (otherKey === boxKey) return;
+          const otherState = { ...updatedStates[otherKey] };
 
-    if (previousRow >= 0) {
-      Object.keys(updatedStates).forEach(otherKey => {
-        if (otherKey === boxKey) return;
-        const otherState = { ...updatedStates[otherKey] };
+          // Check if this box has clicked in the previous row
+          const hasClickedInPreviousRow = otherState.right[previousRow] && otherState.right[previousRow] !== '';
+          const isHyphenInPreviousRow = otherState.rowData[previousRow]?.col1 === '-' && otherState.rowData[previousRow]?.col2 === '-';
 
-        // Check if this box has clicked in the previous row
-        const hasClickedInPreviousRow = otherState.right[previousRow] && otherState.right[previousRow] !== '';
-        const isHyphenInPreviousRow = otherState.rowData[previousRow]?.col1 === '-' && otherState.rowData[previousRow]?.col2 === '-';
+          // If not clicked in previous row and not already hyphened, add hyphen
+          if (!hasClickedInPreviousRow && !isHyphenInPreviousRow && previousRow < otherState.rowData.length) {
+            const newRowData = [...otherState.rowData];
+            newRowData[previousRow] = { col1: '-', col2: '-' };
 
-        // If not clicked in previous row and not already hyphened, add hyphen
-        if (!hasClickedInPreviousRow && !isHyphenInPreviousRow && previousRow < otherState.rowData.length) {
-          const newRowData = [...otherState.rowData];
-          newRowData[previousRow] = { col1: '-', col2: '-' };
+            const newCompleted = [...otherState.completedRows];
+            newCompleted[previousRow] = true;
 
-          const newCompleted = [...otherState.completedRows];
-          newCompleted[previousRow] = true;
+            const newCurrentRow = otherState.currentRow === previousRow ? previousRow + 1 : otherState.currentRow;
 
-          const newCurrentRow = otherState.currentRow === previousRow ? previousRow + 1 : otherState.currentRow;
+            // Advance dataIndex for hyphened rows to maintain proper data sequence
+            const newDataIndex = otherState.dataIndex;
 
-          updatedStates[otherKey] = {
-            ...otherState,
-            rowData: newRowData,
-            completedRows: newCompleted,
-            currentRow: newCurrentRow,
+            updatedStates[otherKey] = {
+              ...otherState,
+              rowData: newRowData,
+              completedRows: newCompleted,
+              currentRow: newCurrentRow,
+              dataIndex: newDataIndex,
+            };
+
+            // Ensure we have enough rows ahead for this box too
+            updatedStates[otherKey] = ensureRowsAhead(updatedStates[otherKey], otherKey);
+          }
+        });
+      }
+
+      // Update lastSameBoxClick for next evaluation
+      setLastSameBoxClick({ boxKey, rowIndex });
+
+      // Ensure all three boxes keep rows in sync length-wise and have enough rows ahead
+      const maxRowsNeeded = Math.max(
+        updatedStates.box1.currentRow + 8,
+        updatedStates.box2.currentRow + 8,
+        updatedStates.box3.currentRow + 8
+      );
+
+      Object.keys(updatedStates).forEach(key => {
+        const s = updatedStates[key];
+        const currentRows = s.rowData.length;
+        
+        if (currentRows < maxRowsNeeded) {
+          const additionalRows = maxRowsNeeded - currentRows;
+          updatedStates[key] = {
+            ...s,
+            rowData: [...s.rowData, ...Array(additionalRows).fill(null)],
+            left: [...s.left, ...Array(additionalRows).fill('')],
+            right: [...s.right, ...Array(additionalRows).fill('')],
+            completedRows: [...s.completedRows, ...Array(additionalRows).fill(false)],
+            buttonColors: [...s.buttonColors, ...Array(additionalRows).fill('')],
           };
-
-          // Ensure we have enough rows ahead for this box too
-          updatedStates[otherKey] = ensureRowsAhead(updatedStates[otherKey], otherKey);
         }
       });
-    }
 
-    // Update lastSameBoxClick for next evaluation
-    setLastSameBoxClick({ boxKey, rowIndex });
-
-    // Ensure all three boxes keep rows in sync length-wise and have enough rows ahead
-    const maxRowsNeeded = Math.max(
-      updatedStates.box1.currentRow + 8,
-      updatedStates.box2.currentRow + 8,
-      updatedStates.box3.currentRow + 8
-    );
-
-    Object.keys(updatedStates).forEach(key => {
-      const s = updatedStates[key];
-      const currentRows = s.rowData.length;
-      
-      if (currentRows < maxRowsNeeded) {
-        const additionalRows = maxRowsNeeded - currentRows;
-        updatedStates[key] = {
-          ...s,
-          rowData: [...s.rowData, ...Array(additionalRows).fill(null)],
-          left: [...s.left, ...Array(additionalRows).fill('')],
-          right: [...s.right, ...Array(additionalRows).fill('')],
-          completedRows: [...s.completedRows, ...Array(additionalRows).fill(false)],
-          buttonColors: [...s.buttonColors, ...Array(additionalRows).fill('')],
-        };
-      }
+      return updatedStates;
     });
-
-    return updatedStates;
-  });
-};
+  };
 
   // Sync button handler with hyphen addition for skipped boxes
   const handleSyncButton = () => {
     setBoxStates(prev => {
       const updatedStates = { ...prev };
-
+      
       // Find the maximum current row across all boxes
       const maxCurrentRow = Math.max(
         updatedStates.box1.currentRow,
         updatedStates.box2.currentRow,
         updatedStates.box3.currentRow
       );
-
+      
       // For each box, move to the max row and add hyphens for skipped rows
       Object.keys(updatedStates).forEach(boxKey => {
         const boxState = updatedStates[boxKey];
         const currentRow = boxState.currentRow;
-
+        
         if (currentRow < maxCurrentRow) {
           // Create copies of arrays to modify
           const newRowData = [...boxState.rowData];
@@ -350,7 +350,7 @@ const handleRightClick = (boxKey, rowIndex, value, levelData) => {
           const newLeft = [...boxState.left];
           const newRight = [...boxState.right];
           const newButtonColors = [...boxState.buttonColors];
-
+          
           // Add hyphens for all skipped rows between currentRow and maxCurrentRow
           for (let rowIndex = currentRow; rowIndex < maxCurrentRow; rowIndex++) {
             // Ensure the array has this index
@@ -361,16 +361,16 @@ const handleRightClick = (boxKey, rowIndex, value, levelData) => {
               newRight.push('');
               newButtonColors.push('');
             }
-
+            
             // Only add hyphen if this row is not already completed and doesn't have data
-            if (!newCompletedRows[rowIndex] &&
-              (newRowData[rowIndex] === null ||
-                (newRowData[rowIndex]?.col1 !== '-' && newRowData[rowIndex]?.col2 !== '-'))) {
+            if (!newCompletedRows[rowIndex] && 
+                (newRowData[rowIndex] === null || 
+                 (newRowData[rowIndex]?.col1 !== '-' && newRowData[rowIndex]?.col2 !== '-'))) {
               newRowData[rowIndex] = { col1: '-', col2: '-' };
               newCompletedRows[rowIndex] = true;
             }
           }
-
+          
           // Update the box state
           updatedStates[boxKey] = {
             ...boxState,
@@ -386,7 +386,7 @@ const handleRightClick = (boxKey, rowIndex, value, levelData) => {
         // Ensure we have enough rows ahead for this box
         updatedStates[boxKey] = ensureRowsAhead(updatedStates[boxKey], boxKey);
       });
-
+      
       return updatedStates;
     });
   };
@@ -477,7 +477,7 @@ const handleRightClick = (boxKey, rowIndex, value, levelData) => {
                     if (!isCompletedInThisBox) {
                       return leftValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
                     }
-
+                    
                     if (buttonColor === 'same') {
                       return leftValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
                     } else if (buttonColor === 'different') {
@@ -490,11 +490,11 @@ const handleRightClick = (boxKey, rowIndex, value, levelData) => {
                     if (rightDisabled && !isCompletedInThisBox) {
                       return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed';
                     }
-
+                    
                     if (!rightDisabled) {
                       return rightValue === buttonValue ? 'bg-gray-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white';
                     }
-
+                    
                     if (buttonColor === 'same') {
                       return rightValue === buttonValue ? 'bg-green-500 text-white' : 'bg-green-300 text-white';
                     } else if (buttonColor === 'different') {
