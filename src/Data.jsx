@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 export default function Data() {
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   const [data, setData] = useState({
     box1: createEmptyBox(),
     box2: createEmptyBox(),
     box3: createEmptyBox(),
   });
 
-  const [isEditing, setIsEditing] = useState(false); 
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    axios.get('https://index-backend.vercel.app/data')
+    axios.get(`${API_BASE_URL}/data`)
       .then((res) => {
         if (res.data) setData(res.data);
       })
@@ -31,7 +34,7 @@ export default function Data() {
   };
 
   const handleSave = () => {
-    axios.post('https://index-backend.vercel.app/data', data)
+    axios.post(`${API_BASE_URL}/data`, data)
       .then((res) => {
         // console.log(res.data);
         setIsEditing(false);
