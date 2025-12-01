@@ -24,8 +24,8 @@ export default function Login() {
 
     // Get up to 4 users from environment variables
     for (let i = 1; i <= 4; i++) {
-      const username = import.meta.env[`VITE_USER_${i}_USERNAME`];
-      const password = import.meta.env[`VITE_USER_${i}_PASSWORD`];
+      const username = import.meta.env[`VITE_USER_${i}_adykasdasdy`];
+      const password = import.meta.env[`VITE_USER_${i}_tauygyas`];
 
       if (username && password) {
         users.push({ username, password });
